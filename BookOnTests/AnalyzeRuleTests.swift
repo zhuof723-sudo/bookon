@@ -110,13 +110,14 @@ final class AnalyzeRuleTests: XCTestCase {
     func testXPath() throws {
         let r = rule(html)
         XCTAssertEqual(try r.getString("//div[@class='result-item'][1]/h3/a/text()"), "斗破苍穹")
-        XCTAssertEqual(try r.getString("@XPath://span[@class='author'][1]/text()"), "天蚕土豆")
+        XCTAssertEqual(try r.getString("@XPath:(//span[@class='author'])[1]/text()"), "天蚕土豆")
+        XCTAssertEqual(try r.getString("//span[@class='author'][1]/text()"), "天蚕土豆\n天蚕土豆", "标准 XPath：每个父节点下的第一个")
         XCTAssertEqual(try r.getString("//div[@class='result-item'][2]/h3/a/@href", isUrl: true), "https://other.com/book/2.html")
         XCTAssertEqual(try r.getElements("//div[@class='result-item']").count, 2)
-        XCTAssertEqual(try r.getString("count(//li)"), "3")
+        XCTAssertEqual(try r.getString("@XPath:count(//li)"), "3")
         let items = try r.getElements("//ul[@class='toc']/li")
         r.setContent(items[1])
-        XCTAssertEqual(try r.getString("./a/text()"), "第二章")
+        XCTAssertEqual(try r.getString("@XPath:./a/text()"), "第二章")
         XCTAssertEqual(try r.getString("//span[@class='none']/text()||//title/text()"), "搜索结果")
     }
 
@@ -192,6 +193,14 @@ final class AnalyzeRuleTests: XCTestCase {
         var c = RuleAnalyzer("@@div.a@span@text")
         c.trim()
         XCTAssertEqual(c.splitRule("@"), ["div.a", "span", "text"])
+    }
+
+    func testLooseJsonUnquotedValues() {
+        let o = JSONLoose.parseObject("{author:class.author.0@text, year:class.update.0@text##-.*##, n:1, ok:true}")
+        XCTAssertEqual(o?["author"] as? String, "class.author.0@text")
+        XCTAssertEqual(o?["year"] as? String, "class.update.0@text##-.*##")
+        XCTAssertEqual((o?["n"] as? NSNumber)?.intValue, 1)
+        XCTAssertEqual(o?["ok"] as? Bool, true)
     }
 
     func testJavaRegexConversion() {

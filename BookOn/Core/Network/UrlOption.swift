@@ -129,20 +129,35 @@ enum JSONLoose {
                 while j < chars.count, chars[j].isWhitespace { j += 1 }
                 if j < chars.count, chars[j] == "}" || chars[j] == "]" { i += 1; continue }
             }
-            // 未加引号的 key
-            if c.isLetter || c == "_" || c == "$" {
+            // 未加引号的 key 或 value（Gson lenient 允许）
+            if c.isLetter || c == "_" || c == "$" || c == "@" || c == "/" || c == "." || c == "#" {
                 var j = i
                 var word = ""
-                while j < chars.count, chars[j].isLetter || chars[j].isNumber || chars[j] == "_" || chars[j] == "$" {
+                while j < chars.count, chars[j].isLetter || chars[j].isNumber || chars[j] == "_" || chars[j] == "$" || chars[j] == "." || chars[j] == "-" {
                     word.append(chars[j]); j += 1
                 }
                 var k = j
                 while k < chars.count, chars[k].isWhitespace { k += 1 }
                 if k < chars.count, chars[k] == ":", !["true", "false", "null"].contains(word) {
                     out += "\"\(word)\""
-                } else {
-                    out += word
+                    i = j; continue
                 }
+                if ["true", "false", "null"].contains(word) && (k >= chars.count || chars[k] == "," || chars[k] == "}" || chars[k] == "]") {
+                    out += word; i = j; continue
+                }
+                // 作为值：读到顶层的 , } ] 为止
+                var v = ""
+                var depth = 0
+                j = i
+                while j < chars.count {
+                    let ch = chars[j]
+                    if ch == "{" || ch == "[" || ch == "(" { depth += 1 }
+                    else if ch == "}" || ch == "]" || ch == ")" { if depth == 0 { break }; depth -= 1 }
+                    else if ch == "," && depth == 0 { break }
+                    v.append(ch); j += 1
+                }
+                let t = v.trimmingCharacters(in: .whitespaces)
+                out += "\"" + t.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
                 i = j; continue
             }
             out.append(c); i += 1
