@@ -38,7 +38,7 @@ final class AnalyzeByJSoup {
         if ruleStr.isEmpty { return textS }
         let (isCss, elementsRule) = Self.splitCss(ruleStr)
         if elementsRule.isEmpty {
-            textS.append((try? element.data()) ?? "")
+            textS.append(element.data())
             return textS
         }
         var analyzer = RuleAnalyzer(elementsRule)
@@ -146,8 +146,8 @@ final class AnalyzeByJSoup {
             for e in elements { let t = e.ownText(); if !t.isEmpty { textS.append(t) } }
         case "html":
             let es = Elements(elements)
-            try? es.select("script").remove()
-            try? es.select("style").remove()
+            _ = try? es.select("script").remove()
+            _ = try? es.select("style").remove()
             if let h = try? es.outerHtml(), !h.isEmpty { textS.append(h) }
         case "all":
             textS.append((try? Elements(elements).outerHtml()) ?? "")

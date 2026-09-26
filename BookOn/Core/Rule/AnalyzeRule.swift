@@ -96,8 +96,7 @@ final class AnalyzeRule {
     private func isSameAsContent(_ o: Any) -> Bool {
         guard let c = content else { return false }
         if let a = o as? String, let b = c as? String { return a == b }
-        if let a = o as? AnyObject, let b = c as? AnyObject { return a === b }
-        return false
+        return (o as AnyObject) === (c as AnyObject)
     }
 
     // MARK: - 取列表
