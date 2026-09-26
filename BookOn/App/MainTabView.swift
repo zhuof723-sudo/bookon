@@ -39,13 +39,23 @@ struct ExploreView: View {
 }
 
 struct MineView: View {
+    @State private var sourceCount = 0
+
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    Label("书源管理", systemImage: "list.bullet.rectangle")
-                    Label("替换净化", systemImage: "wand.and.stars")
-                    Label("备份与恢复", systemImage: "externaldrive")
+                    NavigationLink {
+                        BookSourceListView()
+                    } label: {
+                        HStack {
+                            Label("书源管理", systemImage: "list.bullet.rectangle")
+                            Spacer()
+                            Text("\(sourceCount)").foregroundColor(.secondary)
+                        }
+                    }
+                    Label("替换净化", systemImage: "wand.and.stars").foregroundColor(.secondary)
+                    Label("备份与恢复", systemImage: "externaldrive").foregroundColor(.secondary)
                 }
                 Section {
                     HStack {
@@ -57,6 +67,7 @@ struct MineView: View {
                 }
             }
             .navigationTitle("我的")
+            .onAppear { sourceCount = AppDatabase.shared.bookSourceCount() }
         }
     }
 }

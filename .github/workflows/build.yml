@@ -27,6 +27,20 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
+      - name: Unit tests (simulator)
+        run: |
+          set -o pipefail
+          DEST=$(xcrun simctl list devices available | grep -E "iPhone (1[5-9]|2[0-9])" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+          echo "Simulator: $DEST"
+          xcodebuild test \
+            -project BookOn.xcodeproj \
+            -scheme BookOn \
+            -destination "id=$DEST" \
+            -derivedDataPath build-test \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee test.log | grep -E "error:|Test Case|Executed|BUILD|TEST" || true
+          grep -qE "\*\* TEST SUCCEEDED \*\*" test.log
+
       - name: Build (unsigned)
         run: |
           set -o pipefail
@@ -61,7 +75,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-log
-          path: build.log
+          path: |
+            build.log
+            test.log
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
