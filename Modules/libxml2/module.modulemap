@@ -1,0 +1,5 @@
+module libxml2 [system] [extern_c] {
+    header "libxml2-shim.h"
+    link "xml2"
+    export *
+}
