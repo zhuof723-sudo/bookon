@@ -14,7 +14,7 @@ settings:
     CODE_SIGNING_ALLOWED: "NO"
     CODE_SIGNING_REQUIRED: "NO"
     CODE_SIGN_IDENTITY: ""
-    SWIFT_INCLUDE_PATHS: "$(SRCROOT)/Modules/libxml2"
+    SWIFT_INCLUDE_PATHS: "$(SDKROOT)/usr/include/libxml2"
     HEADER_SEARCH_PATHS: "$(SDKROOT)/usr/include/libxml2"
     OTHER_LDFLAGS: "-lxml2"
 packages:
