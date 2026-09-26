@@ -100,7 +100,7 @@ final class AnalyzeByJSoup {
                         el = es
                     }
                 } else {
-                    el = ElementsSingle().getElementsSingle(temp, r)
+                    var single = ElementsSingle(); el = single.getElementsSingle(temp, r)
                 }
                 lists.append(el)
                 if !el.isEmpty && analyzer.elementsType == "||" { break }
@@ -126,7 +126,7 @@ final class AnalyzeByJSoup {
         let last = rules.count - 1
         for i in 0..<last {
             var es: [Element] = []
-            for elt in elements { es += ElementsSingle().getElementsSingle(elt, rules[i]) }
+            for elt in elements { var single = ElementsSingle(); es += single.getElementsSingle(elt, rules[i]) }
             elements = es
         }
         return elements.isEmpty ? nil : getResultLast(elements, rules[last])
