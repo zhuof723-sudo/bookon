@@ -119,7 +119,11 @@ struct BookSourceListView: View {
             }
             Section(footer: Text("共 \(store.filtered.count) 个书源").font(.footnote)) {
                 ForEach(store.filtered) { s in
-                    BookSourceRow(source: s) { store.toggle(s) }
+                    NavigationLink {
+                        SourceDebugView(source: s)
+                    } label: {
+                        BookSourceRow(source: s) { store.toggle(s) }
+                    }
                         .tag(s.bookSourceUrl)
                         .swipeActions(edge: .trailing) {
                             Button(role: .destructive) { store.delete([s]) } label: {

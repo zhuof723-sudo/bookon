@@ -13,7 +13,7 @@ iOS 网络小说阅读器，使用 Swift / SwiftUI 重写，功能参考 [Legado
 - [x] 0. 工程骨架 + 云端打包
 - [x] 1. 数据模型（兼容 Legado 书源 JSON）+ 本地存储
 - [x] 2. 书源导入（URL / 剪贴板 / 文件）与管理
-- [ ] 3. 网络层 + URL 规则解析
+- [x] 3. 网络层 + URL 规则解析（AnalyzeUrl、字符集、Cookie）
 - [ ] 4. 规则引擎（CSS / XPath / JSONPath / 正则 / JS）
 - [ ] 5. 搜索 → 详情 → 目录 → 正文
 - [ ] 6. 书架 + 阅读器（分页、翻页、主题）

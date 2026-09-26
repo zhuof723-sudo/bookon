@@ -33,8 +33,14 @@ struct ImportBookSourceView: View {
             .alert("导入完成", isPresented: Binding(get: { doneCount != nil }, set: { if !$0 { doneCount = nil } })) {
                 Button("好") { dismiss() }
             } message: { Text("已保存 \(doneCount ?? 0) 个书源") }
-            .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.json, .plainText, .data]) { result in
-                if case .success(let url) = result { loadFile(url) }
+            .sheet(isPresented: $showFilePicker) {
+                DocumentPicker(allowsMultiple: true) { urls in
+                    showFilePicker = false
+                    loadFiles(urls)
+                } onCancel: {
+                    showFilePicker = false
+                }
+                .ignoresSafeArea()
             }
         }
     }
@@ -73,14 +79,32 @@ struct ImportBookSourceView: View {
         }
     }
 
-    private func loadFile(_ url: URL) {
-        let ok = url.startAccessingSecurityScopedResource()
-        defer { if ok { url.stopAccessingSecurityScopedResource() } }
-        if let d = try? Data(contentsOf: url) {
-            text = String(decoding: d, as: UTF8.self)
+    private func loadFiles(_ urls: [URL]) {
+        // 多个文件：各自解析后合并
+        var texts: [String] = []
+        for url in urls {
+            if let t = DocumentPicker.readText(url) { texts.append(t) }
+        }
+        guard !texts.isEmpty else { error = "无法读取文件"; return }
+        if texts.count == 1 {
+            text = texts[0]
             start()
-        } else {
-            error = "无法读取文件"
+            return
+        }
+        loading = true
+        Task {
+            defer { loading = false }
+            var all: [BookSource] = []
+            var errors: [String] = []
+            for t in texts {
+                do { all += try await BookSourceImporter.importText(t) }
+                catch { errors.append(error.localizedDescription) }
+            }
+            if all.isEmpty {
+                self.error = errors.first ?? "没有可导入的书源"
+            } else {
+                items = BookSourceImporter.compare(all)
+            }
         }
     }
 
