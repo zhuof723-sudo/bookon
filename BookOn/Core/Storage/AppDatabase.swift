@@ -224,7 +224,7 @@ final class AppDatabase {
         guard let r = rows?.first else { return nil }
         let deadline = r.int("deadline") ?? 0
         if deadline > 0 && deadline < Date.nowMillis {
-            try? db.run("DELETE FROM kv_cache WHERE key = ?", [.text(key)])
+            _ = try? db.run("DELETE FROM kv_cache WHERE key = ?", [.text(key)])
             return nil
         }
         return r.string("value")
@@ -232,11 +232,11 @@ final class AppDatabase {
 
     func cachePut(_ key: String, _ value: String, ttlSeconds: Int = 0) {
         let deadline: Int64 = ttlSeconds > 0 ? Date.nowMillis + Int64(ttlSeconds) * 1000 : 0
-        try? db.run("INSERT OR REPLACE INTO kv_cache (key, value, deadline) VALUES (?,?,?)",
+        _ = try? db.run("INSERT OR REPLACE INTO kv_cache (key, value, deadline) VALUES (?,?,?)",
                     [.text(key), .text(value), .int(deadline)])
     }
 
     func cacheDelete(_ key: String) {
-        try? db.run("DELETE FROM kv_cache WHERE key = ?", [.text(key)])
+        _ = try? db.run("DELETE FROM kv_cache WHERE key = ?", [.text(key)])
     }
 }

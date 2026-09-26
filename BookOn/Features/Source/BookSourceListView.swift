@@ -57,7 +57,7 @@ final class BookSourceStore: ObservableObject {
 struct BookSourceListView: View {
     @StateObject private var store = BookSourceStore()
     @State private var showImport = false
-    @State private var shareURL: URL?
+    @State private var shareURL: ShareItem?
     @State private var editMode: EditMode = .inactive
     @State private var selection = Set<String>()
 
@@ -77,8 +77,8 @@ struct BookSourceListView: View {
         .sheet(isPresented: $showImport, onDismiss: { store.reload() }) {
             ImportBookSourceView()
         }
-        .sheet(item: $shareURL) { url in
-            ShareSheet(items: [url])
+        .sheet(item: $shareURL) { item in
+            ShareSheet(items: [item.url])
         }
         .onAppear { store.reload() }
     }
@@ -157,7 +157,7 @@ struct BookSourceListView: View {
                     Button("全选") { selection = Set(store.filtered.map(\.bookSourceUrl)) }
                     Button("启用所选") { store.setEnabled(selected, true) }
                     Button("禁用所选") { store.setEnabled(selected, false) }
-                    Button("导出所选") { shareURL = store.exportJSON(selected) }
+                    Button("导出所选") { shareURL = store.exportJSON(selected).map(ShareItem.init) }
                     Button("删除所选", role: .destructive) { store.delete(selected); selection.removeAll() }
                 } label: { Image(systemName: "ellipsis.circle") }
                 Button("完成") { editMode = .inactive; selection.removeAll() }
@@ -165,7 +165,7 @@ struct BookSourceListView: View {
                 Button { showImport = true } label: { Image(systemName: "plus") }
                 Menu {
                     Button { editMode = .active } label: { Label("批量管理", systemImage: "checklist") }
-                    Button { shareURL = store.exportJSON(store.sources) } label: { Label("导出全部", systemImage: "square.and.arrow.up") }
+                    Button { shareURL = store.exportJSON(store.sources).map(ShareItem.init) } label: { Label("导出全部", systemImage: "square.and.arrow.up") }
                         .disabled(store.sources.isEmpty)
                 } label: { Image(systemName: "ellipsis.circle") }
             }
@@ -218,8 +218,9 @@ struct BookSourceRow: View {
     }
 }
 
-extension URL: Identifiable {
-    public var id: String { absoluteString }
+struct ShareItem: Identifiable {
+    let url: URL
+    var id: String { url.absoluteString }
 }
 
 struct ShareSheet: UIViewControllerRepresentable {
