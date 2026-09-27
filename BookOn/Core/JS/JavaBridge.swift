@@ -396,6 +396,19 @@ import SwiftSoup
     }
 
     func setIv(_ v: JSValue) -> SymmetricCryptoBridge { iv = input(v); return self }
+
+    // Swift 内部便捷方法（不导出给 JS）
+    @nonobjc func decryptStr(_ s: String) -> String? {
+        let data: Data? = CryptoUtils.isHex(s) ? CryptoUtils.fromHex(s) : CryptoUtils.base64Decode(s)
+        guard let i = data, let o = CryptoUtils.symmetric(transformation, key: key, iv: iv, encrypt: false, data: i) else { return nil }
+        return String(data: o, encoding: .utf8) ?? String(decoding: o, as: UTF8.self)
+    }
+    @nonobjc func encryptHex(_ s: String) -> String? {
+        CryptoUtils.symmetric(transformation, key: key, iv: iv, encrypt: true, data: Data(s.utf8)).map(CryptoUtils.hex)
+    }
+    @nonobjc func encryptBase64(_ s: String) -> String? {
+        CryptoUtils.symmetric(transformation, key: key, iv: iv, encrypt: true, data: Data(s.utf8))?.base64EncodedString()
+    }
     func encrypt(_ d: JSValue) -> [NSNumber]? {
         guard let i = input(d) else { return nil }
         return CryptoUtils.symmetric(transformation, key: key, iv: iv, encrypt: true, data: i)?.map { NSNumber(value: $0) }
