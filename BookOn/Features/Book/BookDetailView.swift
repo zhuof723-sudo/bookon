@@ -76,7 +76,7 @@ struct BookDetailView: View {
                 if let intro = vm.book.displayIntro, !intro.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("简介").font(.headline)
-                        Text(intro).font(.subheadline).foregroundColor(.secondary)
+                        IntroView(text: intro)
                     }
                 }
                 tocSection

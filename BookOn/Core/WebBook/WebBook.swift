@@ -10,8 +10,10 @@ enum WebBook {
         guard let searchUrl = source.searchUrl, !searchUrl.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
         let a = try AnalyzeUrl(searchUrl, key: key, page: page, baseUrl: source.bookSourceUrl, source: source, js: js)
         let res = try await HTTPClient.shared.strResponse(a)
-        return try BookListParser.parse(source: source, body: res.body, baseUrl: a.baseUrl,
+        let list = try BookListParser.parse(source: source, body: res.body, baseUrl: a.baseUrl,
                                         redirectUrl: res.url, isSearch: true, js: js)
+        AppLog.put("搜索 \(source.bookSourceName): \(res.statusCode) \(res.data.count)B → \(list.count) 本")
+        return list
     }
 
     // MARK: - 发现
@@ -31,6 +33,7 @@ enum WebBook {
         let res = try await HTTPClient.shared.strResponse(a)
         try BookInfoParser.parse(source: source, book: &b, baseUrl: book.bookUrl, redirectUrl: res.url, body: res.body, js: js)
         if b.tocUrl.isEmpty { b.tocUrl = res.url }
+        AppLog.put("详情 \(b.name): \(res.data.count)B, 简介 \((b.intro ?? "").count) 字, toc=\(b.tocUrl)")
         return b
     }
 
@@ -59,8 +62,10 @@ enum WebBook {
         let tocUrl = book.tocUrl.isEmpty ? book.bookUrl : book.tocUrl
         let a = try AnalyzeUrl(tocUrl, baseUrl: source.bookSourceUrl, source: source, js: js)
         let res = try await HTTPClient.shared.strResponse(a)
-        return try await BookChapterListParser.parse(source: source, book: book, baseUrl: tocUrl,
+        let toc = try await BookChapterListParser.parse(source: source, book: book, baseUrl: tocUrl,
                                                      redirectUrl: res.url, body: res.body, js: js)
+        AppLog.put("目录 \(book.name): \(toc.count) 章")
+        return toc
     }
 
     // MARK: - 正文
@@ -70,7 +75,9 @@ enum WebBook {
                                source: source, js: js, bindings: ["book": book, "chapter": chapter, "nextChapterUrl": nextChapterUrl])
         // 正文页可能需要执行 content.webJs（这里作为 @js 附加，简化处理）
         let res = try await HTTPClient.shared.strResponse(a)
-        return try await BookContentParser.parse(source: source, book: book, chapter: chapter, baseUrl: chapter.url,
+        let text = try await BookContentParser.parse(source: source, book: book, chapter: chapter, baseUrl: chapter.url,
                                                 redirectUrl: res.url, body: res.body, nextChapterUrl: nextChapterUrl, js: js)
+        AppLog.put("正文 \(chapter.title): 页面 \(res.data.count)B → 正文 \(text.count) 字")
+        return text
     }
 }
