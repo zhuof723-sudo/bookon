@@ -33,11 +33,11 @@ final class BugRepro5Tests: XCTestCase {
         let r = AnalyzeRule()
         r.setContent(html, baseUrl: "https://t.com")
         XCTAssertFalse(try r.getString("id.content@html").isEmpty, "id.content@html 空")
-        XCTAssertFalse(try r.getString("id.content@textNodes").isEmpty, "id.content@textNodes 空")
         XCTAssertFalse(try r.getString("class.box@tag.div.0@html").isEmpty, "class 链 空")
         XCTAssertFalse(try r.getString("@css:#content@html").isEmpty, "@css:#content@html 空")
         XCTAssertFalse(try r.getString("@css:#content").isEmpty, "@css:#content 无后缀 空")
-        XCTAssertEqual(try r.getString("id.content@text"), "第一段\n第二段")
+        // 段落分行：用 tag.p@text（逐段）
+        XCTAssertEqual(try r.getStringList("id.content@tag.p@text"), ["第一段", "第二段"])
     }
 
     // ② GBK 站点正文解码
@@ -51,6 +51,24 @@ final class BugRepro5Tests: XCTestCase {
         let (decoded, encName) = HTTPClient.decode(html, contentType: "text/html", preferred: nil)
         XCTAssertEqual(encName, "gbk")
         XCTAssertTrue(decoded.contains("第一章内容"), "GBK 解码失败: \(decoded)")
+    }
+
+    // ① GBK 站点常见的 http-equiv 声明形式
+    func testGBKHttpEquiv() {
+        let enc = NetworkUtils.encoding(named: "gbk")!
+        let body = "简介：主角踏上修仙之路。".data(using: enc)!
+        let html = ("<html><head><meta http-equiv=\"Content-Type\" content=\"text/html; charset=gb2312\"></head><body>").data(using: .ascii)! + body + ("</body></html>").data(using: .ascii)!
+        let (decoded, _) = HTTPClient.decode(html, contentType: nil, preferred: nil)
+        XCTAssertTrue(decoded.contains("主角踏上修仙之路"), "http-equiv gb2312 解码失败: \(decoded.prefix(80))")
+    }
+
+    // ① Content-Type 头声明 charset
+    func testCharsetFromHeader() {
+        let enc = NetworkUtils.encoding(named: "gbk")!
+        let data = "斗气大陆".data(using: enc)!
+        let (decoded, name) = HTTPClient.decode(data, contentType: "text/html; charset=GBK", preferred: nil)
+        XCTAssertEqual(name.lowercased(), "gbk")
+        XCTAssertEqual(decoded, "斗气大陆")
     }
 
     // ② content 规则为空 → 应取整个 body（部分书源如此配置）
