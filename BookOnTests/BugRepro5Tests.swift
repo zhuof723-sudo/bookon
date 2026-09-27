@@ -27,17 +27,17 @@ final class BugRepro5Tests: XCTestCase {
         XCTAssertFalse(formatted.contains("<"), "format 后残留标签: \(formatted)")
     }
 
-    // ② 正文：内容规则只写元素定位、不带 @html/@text 后缀时，应返回其 HTML 而非空
-    func testContentRuleWithoutSuffix() throws {
-        let html = "<div id=\"content\"><p>第一段</p><p>第二段</p></div>"
+    // ② 正文：各种常见 content 规则写法都应取到正文
+    func testContentRuleVariants() throws {
+        let html = "<html><body><div class=\"box\"><div id=\"content\"><p>第一段</p><p>第二段</p></div></div></body></html>"
         let r = AnalyzeRule()
         r.setContent(html, baseUrl: "https://t.com")
-        // 常见写法：content 规则只有 "id.content"（无 @html）
-        let byDefault = try r.getString("id.content")
-        XCTAssertFalse(byDefault.isEmpty, "无后缀 content 规则返回空 → 正文加载不出来")
-        // CSS 无后缀
-        let byCss = try r.getString("@css:#content")
-        XCTAssertFalse(byCss.isEmpty, "CSS 无后缀返回空")
+        XCTAssertFalse(try r.getString("id.content@html").isEmpty, "id.content@html 空")
+        XCTAssertFalse(try r.getString("id.content@textNodes").isEmpty, "id.content@textNodes 空")
+        XCTAssertFalse(try r.getString("class.box@tag.div.0@html").isEmpty, "class 链 空")
+        XCTAssertFalse(try r.getString("@css:#content@html").isEmpty, "@css:#content@html 空")
+        XCTAssertFalse(try r.getString("@css:#content").isEmpty, "@css:#content 无后缀 空")
+        XCTAssertEqual(try r.getString("id.content@text"), "第一段\n第二段")
     }
 
     // ② GBK 站点正文解码
