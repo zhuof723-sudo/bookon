@@ -137,13 +137,14 @@ enum CryptoUtils {
         }
         var out = Data(count: input.count + t.blockSize)
         var moved = 0
+        let outCount = out.count
         let status = out.withUnsafeMutableBytes { o in
             input.withUnsafeBytes { i in
                 k.withUnsafeBytes { kk in
                     ivData.withUnsafeBytes { v in
                         CCCrypt(CCOperation(encrypt ? kCCEncrypt : kCCDecrypt), t.algorithm, options,
                                 kk.baseAddress, k.count, t.mode == "ECB" ? nil : v.baseAddress,
-                                i.baseAddress, input.count, o.baseAddress, out.count, &moved)
+                                i.baseAddress, input.count, o.baseAddress, outCount, &moved)
                     }
                 }
             }
