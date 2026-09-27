@@ -10,12 +10,12 @@ import SwiftSoup
     func ajax(_ url: JSValue) -> String
     func connect(_ url: String, _ header: JSValue, _ timeout: JSValue) -> StrResponseBridge
     func ajaxAll(_ urls: [String]) -> [StrResponseBridge]
-    func get(_ url: String, _ headers: JSValue) -> ConnResponseBridge
     func post(_ url: String, _ body: String, _ headers: JSValue) -> ConnResponseBridge
     func head(_ url: String, _ headers: JSValue) -> ConnResponseBridge
     // 变量 / cookie / 缓存
     func put(_ key: String, _ value: String) -> String
-    func get(_ key: String) -> String
+    func getVariable(_ key: String) -> String
+    func get(_ key: JSValue, _ headers: JSValue) -> Any
     func getCookie(_ tag: String, _ key: JSValue) -> String
     func cacheFile(_ url: String, _ saveTime: JSValue) -> String
     func getString(_ rule: JSValue, _ isUrl: JSValue) -> String
@@ -144,14 +144,21 @@ import SwiftSoup
         let r = connect("\(url),\(optStr)", JSValue(undefinedIn: JSContext.current()), JSValue(undefinedIn: JSContext.current()))
         return ConnResponseBridge(r)
     }
-    func get(_ url: String, _ headers: JSValue) -> ConnResponseBridge { simple("GET", url, nil, headers) }
     func post(_ url: String, _ body: String, _ headers: JSValue) -> ConnResponseBridge { simple("POST", url, body, headers) }
     func head(_ url: String, _ headers: JSValue) -> ConnResponseBridge { simple("HEAD", url, nil, headers) }
+
+    /// java.get：1 参 → 取变量（等价 getVariable）；2 参 → HTTP GET（Jsoup 风格）
+    func get(_ key: JSValue, _ headers: JSValue) -> Any {
+        if headers.isUndefined || headers.isNull {
+            return rule.get(key.toString() ?? "")
+        }
+        return simple("GET", key.toString() ?? "", nil, headers)
+    }
 
     // MARK: 变量
 
     func put(_ key: String, _ value: String) -> String { rule.put(key, value) }
-    func get(_ key: String) -> String { rule.get(key) }
+    func getVariable(_ key: String) -> String { rule.get(key) }
 
     func getCookie(_ tag: String, _ key: JSValue) -> String {
         if let k = str(key), !k.isEmpty { return CookieStore.shared.getKey(tag, k) }

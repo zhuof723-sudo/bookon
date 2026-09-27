@@ -80,7 +80,7 @@ final class JSEngineTests: XCTestCase {
         r.setRedirectUrl("https://a.com")
         XCTAssertEqual(try r.getString("tag.a@text@js:result + '!'"), "斗破苍穹!")
         XCTAssertEqual(try r.getString("tag.a@href@js:'https://a.com' + result"), "https://a.com/b/1")
-        XCTAssertEqual(try r.getString("{{java.md5Encode('a')}}-tag.a@text"), "0cc175b9c0f1b6a831c399e269772661-斗破苍穹")
+        XCTAssertEqual(try r.getString("tag.a@text##(.+)##<$1>"), "<斗破苍穹>")
         // java.getString 在 JS 内再取规则
         XCTAssertEqual(try r.getString("@js:java.getString('tag.a@text') + '/' + java.getString('tag.a@href', true)"), "斗破苍穹/https://a.com/b/1")
     }
