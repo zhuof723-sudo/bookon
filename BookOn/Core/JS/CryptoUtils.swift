@@ -7,6 +7,7 @@ enum CryptoUtils {
     // MARK: - 摘要
 
     static func md5(_ data: Data) -> Data {
+        // 书源普遍依赖 MD5 做签名，这里必须保留（非安全用途，deprecation 警告可忽略）
         var d = [UInt8](repeating: 0, count: Int(CC_MD5_DIGEST_LENGTH))
         data.withUnsafeBytes { _ = CC_MD5($0.baseAddress, CC_LONG(data.count), &d) }
         return Data(d)
