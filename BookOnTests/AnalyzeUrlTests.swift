@@ -88,9 +88,9 @@ final class AnalyzeUrlTests: XCTestCase {
     }
 
     func testJsRequiresEngine() {
-        // JS 引擎未接入时应明确报错而不是产生错误 URL
-        XCTAssertThrowsError(try AnalyzeUrl("@js:'https://a.com/' + key", key: "k"))
-        XCTAssertThrowsError(try AnalyzeUrl("https://a.com/{{java.md5Encode(key)}}", key: "k"))
+        // 显式传入占位引擎时应明确报错
+        XCTAssertThrowsError(try AnalyzeUrl("@js:'https://a.com/' + key", key: "k", js: UnavailableJSEvaluator()))
+        XCTAssertThrowsError(try AnalyzeUrl("https://a.com/{{java.md5Encode(key)}}", key: "k", js: UnavailableJSEvaluator()))
     }
 
     func testJsWithStubEngine() throws {

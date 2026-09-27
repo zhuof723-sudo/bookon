@@ -47,7 +47,7 @@ final class AnalyzeUrl {
          baseUrl: String = "",
          source: BookSource? = nil,
          headers: [String: String]? = nil,
-         js: JSEvaluator = UnavailableJSEvaluator(),
+         js: JSEvaluator = JSCoreEvaluator.shared,
          bindings: [String: Any?] = [:]) throws {
         self.ruleUrlRaw = url
         self.key = key

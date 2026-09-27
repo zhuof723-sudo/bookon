@@ -104,6 +104,8 @@ struct SourceDebugView: View {
             } catch {
                 log.append("❌ \(error.localizedDescription)")
             }
+            let recent = AppLog.lines.suffix(20)
+            if !recent.isEmpty { log.append("—— 日志 ——"); log += recent }
         }
     }
 }

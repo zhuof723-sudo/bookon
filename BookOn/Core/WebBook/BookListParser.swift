@@ -20,7 +20,7 @@ struct SearchBook: Identifiable, Equatable {
 enum BookListParser {
 
     static func parse(source: BookSource, body: String, baseUrl: String, redirectUrl: String,
-                      isSearch: Bool, js: JSEvaluator = UnavailableJSEvaluator()) throws -> [SearchBook] {
+                      isSearch: Bool, js: JSEvaluator = JSCoreEvaluator.shared) throws -> [SearchBook] {
         let listRule: String?
         var fields: (name: String?, author: String?, kind: String?, intro: String?, cover: String?, url: String?, words: String?, last: String?)
         if isSearch, let r = source.ruleSearch {

@@ -31,7 +31,7 @@ final class AnalyzeRule {
     private var stringRuleCache: [String: [SourceRule]] = [:]
     private var regexCache: [String: NSRegularExpression?] = [:]
 
-    init(ruleData: RuleData? = nil, source: BookSource? = nil, js: JSEvaluator = UnavailableJSEvaluator()) {
+    init(ruleData: RuleData? = nil, source: BookSource? = nil, js: JSEvaluator = JSCoreEvaluator.shared) {
         self.ruleData = ruleData
         self.source = source
         self.js = js
@@ -308,7 +308,7 @@ final class AnalyzeRule {
         var b: [String: Any?] = [
             "java": self,
             "baseUrl": baseUrl,
-            "result": result,
+            "result": JavaBridge.jsSafe(result),
             "source": source,
             "book": book,
             "chapter": chapter,
