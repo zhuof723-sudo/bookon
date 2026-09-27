@@ -64,9 +64,10 @@ final class ReaderViewModel: ObservableObject {
         let next = chapters[index + 1]
         if AppDatabase.shared.cacheGet(contentKey(next)) != nil { return }
         let afterUrl = chapters.indices.contains(index + 2) ? chapters[index + 2].url : nil
+        let key = contentKey(next)
         Task.detached { [source, book] in
             if let text = try? await WebBook.content(source: source, book: book, chapter: next, nextChapterUrl: afterUrl) {
-                AppDatabase.shared.cachePut(self.contentKey(next), text)
+                AppDatabase.shared.cachePut(key, text)
             }
         }
     }
