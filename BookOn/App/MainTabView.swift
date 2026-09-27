@@ -5,35 +5,10 @@ struct MainTabView: View {
         TabView {
             BookshelfView()
                 .tabItem { Label("书架", systemImage: "books.vertical") }
-            ExploreView()
-                .tabItem { Label("发现", systemImage: "safari") }
+            SearchView()
+                .tabItem { Label("搜索", systemImage: "magnifyingglass") }
             MineView()
                 .tabItem { Label("我的", systemImage: "person.circle") }
-        }
-    }
-}
-
-struct BookshelfView: View {
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 12) {
-                Image(systemName: "books.vertical")
-                    .font(.system(size: 48))
-                    .foregroundColor(.secondary)
-                Text("书架空空如也")
-                    .foregroundColor(.secondary)
-            }
-            .navigationTitle("书架")
-        }
-    }
-}
-
-struct ExploreView: View {
-    var body: some View {
-        NavigationStack {
-            Text("导入书源后可在此发现书籍")
-                .foregroundColor(.secondary)
-                .navigationTitle("发现")
         }
     }
 }
