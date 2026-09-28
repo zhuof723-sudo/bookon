@@ -340,6 +340,7 @@ import SwiftSoup
     func showBrowser(_ url: JSValue, _ html: JSValue, _ a: JSValue, _ b: JSValue) {
         let u = str(url) ?? ""
         let h = str(html)
+        AppLog.put("java.showBrowser 触发: url=\(u.prefix(80)) htmlLen=\(h?.count ?? 0)")
         DispatchQueue.main.async { BrowserPresenter.shared.show(title: "评论", html: h, url: u) }
     }
     func importScript(_ path: String) -> String {

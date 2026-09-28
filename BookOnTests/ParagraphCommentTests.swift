@@ -72,6 +72,34 @@ final class ParagraphCommentTests: XCTestCase {
         XCTAssertTrue(paras[2].text.contains("蝉鸣"))
     }
 
+    /// 点击气泡 → java.showBrowser → BrowserPresenter.request 被设置，sheet 据此弹出。
+    @MainActor
+    func testBrowserPresenterReceivesShow() {
+        let p = BrowserPresenter.shared
+        p.request = nil
+        p.show(title: "段评", html: "<p>hi</p>", url: "https://x.test/cmt")
+        XCTAssertNotNil(p.request, "showBrowser 应设置 request，sheet 才会弹出")
+        XCTAssertEqual(p.request?.url, "https://x.test/cmt")
+        XCTAssertEqual(p.request?.html, "<p>hi</p>")
+        p.request = nil
+    }
+
+    /// java.showBrowser 桥接：真实 4 参调用应把 url/html 交给 BrowserPresenter。
+    @MainActor
+    func testJavaShowBrowserBridgePublishes() throws {
+        let url = Bundle(for: Self.self).url(forResource: "fanqie_go", withExtension: "json")!
+        let source = try LegadoJSON.decoder().decode([BookSource].self, from: Data(contentsOf: url))[0]
+        BrowserPresenter.shared.request = nil
+        let js = "java.showBrowser('https://x.test/p','<p>正文评论</p>','', '{}')"
+        _ = try JSCoreEvaluator.shared.eval(js, bindings: ["source": source])
+        // showBrowser 内部用 DispatchQueue.main.async 发布，等一个 runloop
+        let exp = expectation(description: "browser shown")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { exp.fulfill() }
+        wait(for: [exp], timeout: 2)
+        XCTAssertEqual(BrowserPresenter.shared.request?.url, "https://x.test/p")
+        BrowserPresenter.shared.request = nil
+    }
+
     private func realBubbleImgTag(count: String) -> String {
         "<img src=\"data:image/svg+xml;base64,ABC==,{\"style\":\"text\",\"type\":\"qd\",\"click\":\"showCmt('1','2','0','\(count)')\"}\">"
     }

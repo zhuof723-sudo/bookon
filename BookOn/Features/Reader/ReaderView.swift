@@ -84,15 +84,22 @@ final class ReaderViewModel: ObservableObject {
     func clickImage(_ click: String, src: String) {
         let (s, bk) = (source, book)
         let ch = current
-        Task.detached {
+        AppLog.put("点击段评气泡: \(click.prefix(60))")
+        // 用独立线程执行：click JS 内部会调 java.ajax（同步阻塞，内部再 spawn Task + 信号量等待），
+        // 若跑在 Swift 并发协作线程池上，嵌套阻塞可能耗尽线程池导致卡死/不响应。
+        // 独立 Thread 不占用协作池，最稳妥。
+        let thread = Thread {
             do {
                 _ = try JSCoreEvaluator.shared.eval(click, bindings: [
                     "source": s, "book": bk, "chapter": ch, "result": src,
                 ])
+                AppLog.put("段评 click JS 执行完成")
             } catch {
                 AppLog.put("执行图片 click 出错: \(error.localizedDescription)")
             }
         }
+        thread.stackSize = 4 << 20
+        thread.start()
     }
 
     private func saveProgress() {
@@ -123,13 +130,17 @@ struct ReaderView: View {
 
     var body: some View {
         ZStack {
-            Color(.systemBackground).ignoresSafeArea()
+            // 背景层承载“点击切换工具栏”手势——只放在背景上，避免盖住正文里的段评气泡按钮，
+            // 否则外层 onTapGesture 会抢走气泡的点击，导致“点了没反应/打不开”。
+            Color(.systemBackground)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture { withAnimation { showBars.toggle() } }
             content
             if showBars { topBar; bottomBar }
         }
         .navigationBarHidden(true)
         .onAppear { if vm.content.isEmpty { vm.loadCurrent() } }
-        .onTapGesture { withAnimation { showBars.toggle() } }
         // 点段评气泡时 JS 会调用 java.showBrowser -> BrowserPresenter，在阅读器这一层直接弹出，
         // 保证 push 在导航栈里时也能正常展示评论页。
         .sheet(item: $browser.request) { req in
@@ -183,18 +194,23 @@ struct ReaderView: View {
     @ViewBuilder
     private func paragraphView(_ para: ContentParagraph) -> some View {
         if para.bubbles.isEmpty {
-            // 纯文本段落
+            // 纯文本段落（点击切换工具栏，与背景一致）
             if !para.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text(para.text)
                     .font(.system(size: fontSize))
                     .lineSpacing(fontSize * 0.5)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture { withAnimation { showBars.toggle() } }
             }
         } else {
-            // 文本 + 尾部气泡：用自动换行的流式排布，气泡跟在文字后
+            // 文本 + 尾部气泡：用自动换行的流式排布，气泡跟在文字后。
+            // 文字部分点击切换工具栏，气泡按钮点击打开评论（Button 自身接管点击，不会被文字手势抢）。
             FlowLayout(spacing: 4, lineSpacing: fontSize * 0.5) {
                 Text(para.text)
                     .font(.system(size: fontSize))
+                    .contentShape(Rectangle())
+                    .onTapGesture { withAnimation { showBars.toggle() } }
                 ForEach(Array(para.bubbles.enumerated()), id: \.offset) { _, b in
                     CommentBubble(count: b.click.flatMap(parseBadgeCount)) {
                         if let c = b.click { vm.clickImage(c, src: b.src) }
