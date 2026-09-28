@@ -55,14 +55,14 @@ final class ParagraphCommentTests: XCTestCase {
         let cleaned = HTMLFormatter.formatKeepImg(raw, redirectUrl: "http://154.58.233.54:1968")
         let paras = ContentParagraph.parse(cleaned)
         XCTAssertGreaterThanOrEqual(paras.count, 3, "应切出多段")
-        // 第一段是「炎炎八月。」且尾部带一个段评气泡
-        XCTAssertEqual(paras[0].text, "炎炎八月。")
+        // 第一段是「炎炎八月。」且尾部带一个段评气泡（format 会给段落加全角缩进，故用 contains）
+        XCTAssertTrue(paras[0].text.contains("炎炎八月。"), "首段文字: \(paras[0].text)")
         XCTAssertEqual(paras[0].bubbles.count, 1, "第一段末尾应有 1 个气泡")
         let click = try XCTUnwrap(paras[0].bubbles[0].click)
         XCTAssertTrue(click.hasPrefix("showCmt("), "click 应为 showCmt: \(click)")
         XCTAssertTrue(click.contains("6982529841564224526"), "应含 bookId")
         // 第二段「滴滴滴——！」尾部也有一个气泡
-        XCTAssertEqual(paras[1].text, "滴滴滴——！")
+        XCTAssertTrue(paras[1].text.contains("滴滴滴——！"), "第二段文字: \(paras[1].text)")
         XCTAssertEqual(paras[1].bubbles.count, 1)
         // 气泡不会污染正文文字
         XCTAssertFalse(paras[0].text.contains("<img"))
