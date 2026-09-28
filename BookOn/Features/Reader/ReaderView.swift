@@ -120,6 +120,13 @@ struct ReaderView: View {
                         Text("加载失败").font(.headline)
                         Text(e).font(.footnote).foregroundColor(.secondary).multilineTextAlignment(.center)
                         Button("重试") { vm.loadCurrent() }.buttonStyle(.borderedProminent)
+                        diagnostics
+                    }.padding(.top, 40).frame(maxWidth: .infinity)
+                } else if vm.content.isEmpty {
+                    VStack(spacing: 10) {
+                        Text("正文为空").font(.headline)
+                        Button("重试") { vm.loadCurrent() }.buttonStyle(.borderedProminent)
+                        diagnostics
                     }.padding(.top, 40).frame(maxWidth: .infinity)
                 } else {
                     Text(vm.content)
@@ -130,6 +137,25 @@ struct ReaderView: View {
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 40)
+        }
+    }
+
+    private var diagnostics: some View {
+        let lines = AppLog.lines.suffix(12)
+        return Group {
+            if !lines.isEmpty {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("日志").font(.caption).foregroundColor(.secondary)
+                    ForEach(Array(lines.enumerated()), id: \.offset) { _, l in
+                        Text(l).font(.system(size: 10, design: .monospaced))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(8)
+                .background(Color(.secondarySystemFill))
+                .cornerRadius(6)
+            }
         }
     }
 

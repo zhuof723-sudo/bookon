@@ -37,13 +37,15 @@ final class JSCoreEvaluator: JSEvaluator {
         // jsLib
         if let lib = source?.jsLib?.trimmingCharacters(in: .whitespacesAndNewlines), !lib.isEmpty {
             ctx.evaluateScript(try loadJsLib(lib))
-            if let e = thrown { thrown = nil; AppLog.put("jsLib 执行出错: \(e)") }
+            if let e = thrown { thrown = nil; AppLog.put("jsLib 执行出错: \(String(describing: e))") }
         }
 
         let result = ctx.evaluateScript(script)
         if let e = thrown {
             let msg = e.toString() ?? "JS 错误"
             let line = e.forProperty("line")?.toInt32() ?? 0
+            let head = script.split(separator: "\n").prefix(3).joined(separator: " ").prefix(80)
+            AppLog.put("JS 错误: \(msg) line \(line) — 脚本: \(head)")
             throw JSError(message: "\(msg)\(line > 0 ? " (line \(line))" : "")")
         }
         return Self.fromJS(result)

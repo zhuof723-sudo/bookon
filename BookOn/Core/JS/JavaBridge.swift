@@ -63,6 +63,10 @@ import SwiftSoup
     func androidId() -> String
     func getWebViewUA() -> String
     func toURL(_ url: String, _ baseUrl: JSValue) -> JsURLBridge
+    func sleep(_ ms: JSValue)
+    func getThemeConfig() -> String
+    func getActivityRef() -> ActivityRefBridge
+    func getThemeMode() -> String
     // 调试
     func log(_ msg: JSValue) -> JSValue
     func logType(_ any: JSValue)
@@ -71,8 +75,25 @@ import SwiftSoup
     // 尚未支持（占位，返回空并记录日志）
     func webView(_ html: JSValue, _ url: JSValue, _ js: JSValue) -> String?
     func startBrowser(_ url: String, _ title: String)
+    func startBrowserAwait(_ url: String, _ title: String) -> StrResponseBridge
+    func showBrowser(_ url: JSValue, _ html: JSValue, _ a: JSValue, _ b: JSValue)
     func importScript(_ path: String) -> String
     func getVerificationCode(_ imageUrl: String) -> String
+    // 交互类占位（书源在阅读器/发现里用，解析流程用不到，做成空操作避免 JS 抛错）
+    func open(_ a: JSValue, _ b: JSValue, _ c: JSValue, _ d: JSValue)
+    func searchBook(_ a: JSValue, _ b: JSValue)
+    func refreshExplore()
+    func reLoginView()
+    func openUrl(_ url: JSValue, _ mime: JSValue)
+    func getActivityRefValue() -> Any?
+}
+
+/// java.getActivityRef() 返回一个带 .get() 的对象（书源用来判断是否有界面上下文）
+@objc protocol ActivityRefExport: JSExport {
+    func get() -> Any?
+}
+@objc final class ActivityRefBridge: NSObject, ActivityRefExport {
+    func get() -> Any? { nil }
 }
 
 @objc final class JavaBridge: NSObject, JavaBridgeExport {
@@ -305,11 +326,34 @@ import SwiftSoup
         AppLog.put("java.webView 暂未支持"); return nil
     }
     func startBrowser(_ url: String, _ title: String) { AppLog.put("java.startBrowser 暂未支持: \(url)") }
+    func startBrowserAwait(_ url: String, _ title: String) -> StrResponseBridge {
+        AppLog.put("java.startBrowserAwait 暂未支持: \(url)")
+        return StrResponseBridge(url: url, body: "", code: 0, headers: [:])
+    }
+    func showBrowser(_ url: JSValue, _ html: JSValue, _ a: JSValue, _ b: JSValue) { AppLog.put("java.showBrowser 暂未支持") }
     func importScript(_ path: String) -> String {
         if NetworkUtils.isAbsUrl(path) { return cacheFile(path, JSValue(undefinedIn: JSContext.current())) }
         return ""
     }
     func getVerificationCode(_ imageUrl: String) -> String { AppLog.put("java.getVerificationCode 暂未支持"); return "" }
+
+    // 阻塞休眠（书源目录/正文轮询会用；上限 90s，防止卡死）
+    func sleep(_ ms: JSValue) {
+        let n = ms.isNumber ? Int(ms.toInt32()) : (Int(ms.toString() ?? "") ?? 0)
+        let capped = min(max(0, n), 90_000)
+        if capped > 0 { Thread.sleep(forTimeInterval: Double(capped) / 1000.0) }
+    }
+    func getThemeConfig() -> String { "{}" }
+    func getThemeMode() -> String { "light" }
+    func getActivityRef() -> ActivityRefBridge { ActivityRefBridge() }
+    func getActivityRefValue() -> Any? { nil }
+
+    // 交互类占位
+    func open(_ a: JSValue, _ b: JSValue, _ c: JSValue, _ d: JSValue) { AppLog.put("java.open (占位)") }
+    func searchBook(_ a: JSValue, _ b: JSValue) { AppLog.put("java.searchBook (占位)") }
+    func refreshExplore() {}
+    func reLoginView() {}
+    func openUrl(_ url: JSValue, _ mime: JSValue) { AppLog.put("java.openUrl (占位): \(url.toString() ?? "")") }
 }
 
 // MARK: - 辅助桥接对象

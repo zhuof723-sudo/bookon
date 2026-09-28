@@ -198,7 +198,17 @@ enum BookContentParser {
         analyzer.setContent(body, baseUrl: baseUrl)
         let rUrl = analyzer.setRedirectUrl(redirectUrl)
 
-        var content = try analyzer.getString(rule.content, unescape: false)
+        var content: String
+        if let cr = rule.content, !cr.trimmingCharacters(in: .whitespaces).isEmpty {
+            content = try analyzer.getString(cr, unescape: false)
+            // 规则取不到时退回整页文本（部分书源正文即整页）
+            if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                content = (try? analyzer.getString("body@html", unescape: false)) ?? body
+            }
+        } else {
+            // 空 content 规则：取整页 body（Legado element.data 行为的近似）
+            content = (try? analyzer.getString("body@html", unescape: false)) ?? body
+        }
         // 文本类才做 HTML 格式化（音视频取到的是链接）
         if source.sourceType == .text || source.sourceType == .file {
             content = HTMLFormatter.formatKeepImg(content, redirectUrl: rUrl?.absoluteString)
