@@ -19,13 +19,14 @@ final class ParagraphCommentTests: XCTestCase {
     }
 
     func testContentSegmenterSplitsTextAndBubble() {
-        let content = "第一段文字。\n" + realBubbleHTML.replacingOccurrences(of: "<p>正文段落。</p>", with: "") + "\n第二段文字。"
+        let bubbleOnly = realBubbleHTML.replacingOccurrences(of: "<p>正文段落。</p>", with: "")
+        let content = "第一段文字。\n" + bubbleOnly + "\n第二段文字。"
         let segs = ContentSegmenter.segments(content)
         XCTAssertEqual(segs.count, 3)
         guard case .text(let t1) = segs[0] else { return XCTFail("首段应为文本") }
         XCTAssertTrue(t1.contains("第一段文字"))
         guard case .image(let src, let click) = segs[1] else { return XCTFail("中段应为气泡图片") }
-        XCTAssertEqual(src, "data:image/x;base64,AA==")
+        XCTAssertEqual(src, "data:image/svg+xml;base64,ABC==")
         XCTAssertEqual(click, "showCmt('1','2','0','56190')")
         guard case .text(let t2) = segs[2] else { return XCTFail("末段应为文本") }
         XCTAssertTrue(t2.contains("第二段文字"))
