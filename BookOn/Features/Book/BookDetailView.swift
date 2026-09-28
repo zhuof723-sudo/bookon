@@ -26,12 +26,19 @@ final class BookDetailViewModel: ObservableObject {
     func load() {
         guard let source else { error = "找不到对应书源（可能已删除）"; return }
         loading = true; error = nil
+        let src = source
+        let bk = book
         Task {
             defer { loading = false }
             do {
-                let info = try await WebBook.bookInfo(source: source, book: book)
+                // 同阅读器：详情/目录抓取里可能有 java.sleep 阻塞轮询（本源目录冷启动最长 90 秒），
+                // 必须放到 Task.detached 的后台线程执行，避免冻结主线程 UI。
+                let (info, toc) = try await Task.detached {
+                    let info = try await WebBook.bookInfo(source: src, book: bk)
+                    let toc = try await WebBook.chapterList(source: src, book: info)
+                    return (info, toc)
+                }.value
                 book = info
-                let toc = try await WebBook.chapterList(source: source, book: info)
                 chapters = toc
                 if inShelf { persist() }
             } catch {

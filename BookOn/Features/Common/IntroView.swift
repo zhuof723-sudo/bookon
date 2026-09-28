@@ -5,6 +5,7 @@ import WebKit
 /// <md> 是 Markdown；其余是纯文本。
 struct IntroView: View {
     let text: String
+    @State private var webHeight: CGFloat = 80
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -21,8 +22,9 @@ struct IntroView: View {
     var body: some View {
         switch kind {
         case .webHTML(let html), .html(let html):
-            HTMLContent(html: html)
-                .frame(minHeight: 40)
+            HTMLContent(html: html, height: $webHeight)
+                .frame(maxWidth: .infinity)
+                .frame(height: webHeight)
         case .markdown(let md):
             Text(renderMarkdown(md))
                 .font(.subheadline)
@@ -42,41 +44,62 @@ struct IntroView: View {
 }
 
 /// 自动高度的 HTML 渲染视图（WKWebView）
+/// 关键点：SwiftUI 的 UIViewRepresentable 不会自动帮 WKWebView 撑高度，
+/// 必须实测网页内容高度后写回 `height` binding，否则整块视图会以 0 高度收起、
+/// 看起来就像“简介消失了”。
 struct HTMLContent: UIViewRepresentable {
     let html: String
+    @Binding var height: CGFloat
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeCoordinator() -> Coordinator { Coordinator(height: $height) }
 
     final class Coordinator: NSObject, WKNavigationDelegate {
-        var heightConstraint: NSLayoutConstraint?
-        var onHeight: ((CGFloat) -> Void)?
+        var height: Binding<CGFloat>
+        init(height: Binding<CGFloat>) { self.height = height }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            webView.evaluateJavaScript("document.documentElement.scrollHeight") { value, _ in
-                if let h = value as? CGFloat, h > 0 { self.onHeight?(h) }
+            measure(webView)
+            // 内嵌图片（含 base64 SVG）可能在 didFinish 后才完成布局，补测几次
+            for delay in [0.15, 0.4, 0.9] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak webView] in
+                    guard let webView else { return }
+                    self.measure(webView)
+                }
+            }
+        }
+
+        private func measure(_ webView: WKWebView) {
+            webView.evaluateJavaScript("document.documentElement.scrollHeight") { [weak self] value, _ in
+                guard let self else { return }
+                if let h = value as? NSNumber {
+                    let newHeight = max(CGFloat(truncating: h), 40)
+                    if abs(newHeight - self.height.wrappedValue) > 1 {
+                        self.height.wrappedValue = newHeight
+                    }
+                }
             }
         }
     }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.suppressesIncrementalRendering = true
         let web = WKWebView(frame: .zero, configuration: config)
         web.navigationDelegate = context.coordinator
         web.isOpaque = false
         web.backgroundColor = .clear
         web.scrollView.isScrollEnabled = false
         web.scrollView.backgroundColor = .clear
-        web.setContentHuggingPriority(.defaultLow, for: .vertical)
         return web
     }
 
     func updateUIView(_ web: WKWebView, context: Context) {
+        context.coordinator.height = $height
         let doc = """
         <html><head><meta name="viewport" content="width=device-width, initial-scale=1">
         <style>
-        body { margin:0; padding:0; font: -apple-system-body; font-size:15px; line-height:1.7;
-               color: \(UIColor.secondaryLabel.hexRGBA); word-break: break-word; background: transparent; }
+        html, body { margin:0; padding:0; }
+        body { font: -apple-system-body; font-size:15px; line-height:1.7;
+               color: \(UIColor.label.hexRGBA); word-break: break-word; background: transparent; }
         img, svg, video { max-width: 100% !important; height: auto !important; }
         a { color: \(UIColor.link.hexRGBA); text-decoration: none; }
         p { margin: 0 0 8px; }

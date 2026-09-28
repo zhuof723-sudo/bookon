@@ -32,10 +32,17 @@ final class ReaderViewModel: ObservableObject {
         }
         loading = true; error = nil; content = ""
         let nextUrl = chapters.indices.contains(index + 1) ? chapters[index + 1].url : nil
+        let (src, bk) = (source, book)
         Task {
             defer { loading = false }
             do {
-                let text = try await WebBook.content(source: source, book: book, chapter: chapter, nextChapterUrl: nextUrl)
+                // 关键：书源 JS 里可能有 java.sleep 等阻塞调用（如轮询冷目录/正文，最长可达 90 秒）。
+                // 本方法所在的 ReaderViewModel 是 @MainActor，若直接在这里 await，
+                // Task 会继承主线程执行环境，阻塞调用会冻结整个 App 界面。
+                // 用 Task.detached 把真正耗时的工作丢到后台线程，这里只 await 结果。
+                let text = try await Task.detached {
+                    try await WebBook.content(source: src, book: bk, chapter: chapter, nextChapterUrl: nextUrl)
+                }.value
                 content = text
                 AppDatabase.shared.cachePut(contentKey(chapter), text)
                 saveProgress()
