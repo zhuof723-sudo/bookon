@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @StateObject private var browser = BrowserPresenter.shared
+
     var body: some View {
         TabView {
             BookshelfView()
@@ -9,6 +11,10 @@ struct MainTabView: View {
                 .tabItem { Label("搜索", systemImage: "magnifyingglass") }
             MineView()
                 .tabItem { Label("我的", systemImage: "person.circle") }
+        }
+        // 书源 JS 调用 java.showBrowser / startBrowser（段评/章评/书评等）时，从这里弹出
+        .sheet(item: $browser.request) { req in
+            BottomWebView(title: req.title, html: req.html, url: req.url)
         }
     }
 }

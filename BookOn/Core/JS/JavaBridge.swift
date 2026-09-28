@@ -325,12 +325,23 @@ import SwiftSoup
     func webView(_ html: JSValue, _ url: JSValue, _ js: JSValue) -> String? {
         AppLog.put("java.webView 暂未支持"); return nil
     }
-    func startBrowser(_ url: String, _ title: String) { AppLog.put("java.startBrowser 暂未支持: \(url)") }
+    /// 对应 Legado `startBrowser(url, title)`：弹出内置浏览器加载该地址（无预取 HTML）
+    func startBrowser(_ url: String, _ title: String) {
+        DispatchQueue.main.async { BrowserPresenter.shared.show(title: title, html: nil, url: url) }
+    }
+    /// 对应 `startBrowserAwait`：与 startBrowser 相同地弹出页面，同时把地址包成 StrResponse 返回
+    /// （原版会等用户在浏览器里操作完再拿到最终 body/url，这里做简化：先展示，返回原始 url）
     func startBrowserAwait(_ url: String, _ title: String) -> StrResponseBridge {
-        AppLog.put("java.startBrowserAwait 暂未支持: \(url)")
+        DispatchQueue.main.async { BrowserPresenter.shared.show(title: title, html: nil, url: url) }
         return StrResponseBridge(url: url, body: "", code: 0, headers: [:])
     }
-    func showBrowser(_ url: JSValue, _ html: JSValue, _ a: JSValue, _ b: JSValue) { AppLog.put("java.showBrowser 暂未支持") }
+    /// 对应 `SourceLoginJsExtensions.showBrowser(url, html, preloadJs, config)`：
+    /// 直接展示已经用 java.ajax 预取好的页面（段评/章评/书评/作家说都走这条）
+    func showBrowser(_ url: JSValue, _ html: JSValue, _ a: JSValue, _ b: JSValue) {
+        let u = str(url) ?? ""
+        let h = str(html)
+        DispatchQueue.main.async { BrowserPresenter.shared.show(title: "评论", html: h, url: u) }
+    }
     func importScript(_ path: String) -> String {
         if NetworkUtils.isAbsUrl(path) { return cacheFile(path, JSValue(undefinedIn: JSContext.current())) }
         return ""

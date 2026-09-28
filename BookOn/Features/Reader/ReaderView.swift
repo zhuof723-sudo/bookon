@@ -79,6 +79,22 @@ final class ReaderViewModel: ObservableObject {
         }
     }
 
+    /// 对应 Legado `ReadBookActivity.clickImg`：执行图片 `click` 里的 JS，
+    /// 绑定 java/source/book/chapter，`result` = 图片地址（这里是段评气泡等场景的入口）。
+    func clickImage(_ click: String, src: String) {
+        let (s, bk) = (source, book)
+        let ch = current
+        Task.detached {
+            do {
+                _ = try JSCoreEvaluator.shared.eval(click, bindings: [
+                    "source": s, "book": bk, "chapter": ch, "result": src,
+                ])
+            } catch {
+                AppLog.put("执行图片 click 出错: \(error.localizedDescription)")
+            }
+        }
+    }
+
     private func saveProgress() {
         guard AppDatabase.shared.book(url: book.bookUrl) != nil else { return }
         var b = book
@@ -136,15 +152,45 @@ struct ReaderView: View {
                         diagnostics
                     }.padding(.top, 40).frame(maxWidth: .infinity)
                 } else {
-                    Text(vm.content)
-                        .font(.system(size: fontSize))
-                        .lineSpacing(fontSize * 0.5)
+                    contentBody
                 }
                 chapterNav
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 40)
         }
+    }
+
+    /// 正文渲染：文本照常显示；`<img ...,{"click":"..."}>`（段评气泡等）渲染成可点的小徽标，
+    /// 点击后按 Legado `clickImg` 语义执行其 click JS。
+    private var contentBody: some View {
+        let segments = ContentSegmenter.segments(vm.content)
+        return VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(segments.enumerated()), id: \.offset) { _, seg in
+                switch seg {
+                case .text(let t):
+                    if !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Text(t)
+                            .font(.system(size: fontSize))
+                            .lineSpacing(fontSize * 0.5)
+                    }
+                case .image(let src, let click):
+                    CommentBubble(count: click.flatMap(parseBadgeCount)) {
+                        if let click { vm.clickImage(click, src: src) }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+    }
+
+    /// 段评气泡的数字是画在 SVG 位图里的，原生端拿不到画面像素；
+    /// 退而求其次从 click 里 `showCmt('bookId','itemId','para','count')` 的第 4 个参数取回数量显示。
+    private func parseBadgeCount(_ click: String) -> Int? {
+        guard let re = try? NSRegularExpression(pattern: "showCmt\\([^)]*'\\s*,\\s*'(\\d+)'\\s*\\)"),
+              let m = re.firstMatch(in: click, range: NSRange(click.startIndex..., in: click)),
+              let r = Range(m.range(at: 1), in: click) else { return nil }
+        return Int(click[r])
     }
 
     private var diagnostics: some View {

@@ -13,8 +13,17 @@ enum HTMLFormatter {
     private static let indent1 = try! NSRegularExpression(pattern: "\\s*\\n+\\s*")
     private static let indent2 = try! NSRegularExpression(pattern: "^[\\n\\s]+")
     private static let last = try! NSRegularExpression(pattern: "[\\n\\s]+$")
+    /// 与 Legado `HtmlFormatter.formatImagePattern` 完全一致：
+    /// 分支1匹配 src 后面带 `,{...}` 点击/样式选项（如段评气泡 `data:...,{"click":"..."}"）的情况，
+    /// 要求捕获到平衡的花括号，不能用简单的“遇到引号就停”，否则这类图片的 JSON 选项会被截断丢失。
+    /// 分支2匹配懒加载的 data-src/data-original/data-srcset。
+    /// 分支3/4是普通 src（双引号/单引号）兜底。
     private static let imgTag = try! NSRegularExpression(
-        pattern: "<img[^>]*src=[\"']?([^\"' >]+)[\"']?[^>]*>", options: .caseInsensitive)
+        pattern: "<img[^>]*\\ssrc\\s*=\\s*['\"]([^'\"{>]*\\{(?:[^{}]|\\{[^}>]+\\})+\\})['\"][^>]*>"
+               + "|<img[^>]*\\sdata-(?:src|original|srcset)\\s*=\\s*['\"]([^'\">]+)['\"][^>]*>"
+               + "|<img[^>]*\\ssrc\\s*=\\s*\"([^\">]+)\"[^>]*>"
+               + "|<img[^>]*\\s(?:data-[^=>]*|src)=\\s*['\"]([^'\">]*)['\"][^>]*>",
+        options: .caseInsensitive)
 
     private static func r(_ s: String, _ re: NSRegularExpression, _ t: String) -> String {
         re.stringByReplacingMatches(in: s, range: NSRange(location: 0, length: (s as NSString).length), withTemplate: t)
@@ -29,7 +38,9 @@ enum HTMLFormatter {
         return s
     }
 
-    /// 保留 <img>，并把 src 转成绝对地址
+    /// 保留 <img>，并把 src 转成绝对地址。
+    /// 对应 Legado `HtmlFormatter.formatKeepImg`：分支1（带 `,{...}` 选项的 src）要把选项完整保留，
+    /// 只对选项前的地址部分做绝对化；分支2/3/4是普通 src，直接绝对化。
     static func formatKeepImg(_ html: String?, redirectUrl: String?) -> String {
         let s = format(html, keepImg: true)
         let ns = s as NSString
@@ -37,13 +48,24 @@ enum HTMLFormatter {
         var pos = 0
         for m in imgTag.matches(in: s, range: NSRange(location: 0, length: ns.length)) {
             out += ns.substring(with: NSRange(location: pos, length: m.range.location - pos))
-            var src = ns.substring(with: m.range(at: 1))
+            var raw: String
             var param = ""
-            if let pr = AnalyzeUrl.paramRegex.firstMatch(in: src, range: NSRange(src.startIndex..., in: src)),
-               let rr = Range(pr.range, in: src) {
-                param = "," + String(src[rr.upperBound...]); src = String(src[..<rr.lowerBound])
+            if m.range(at: 1).location != NSNotFound {
+                raw = ns.substring(with: m.range(at: 1))
+                // raw 形如 "地址,{...}"：地址与选项以 AnalyzeUrl 的 ",（后跟 {）" 规则切开
+                if let pr = AnalyzeUrl.paramRegex.firstMatch(in: raw, range: NSRange(raw.startIndex..., in: raw)),
+                   let rr = Range(pr.range, in: raw) {
+                    param = "," + String(raw[rr.upperBound...])
+                    raw = String(raw[..<rr.lowerBound])
+                }
+            } else if m.range(at: 2).location != NSNotFound {
+                raw = ns.substring(with: m.range(at: 2))
+            } else if m.range(at: 3).location != NSNotFound {
+                raw = ns.substring(with: m.range(at: 3))
+            } else {
+                raw = ns.substring(with: m.range(at: 4))
             }
-            out += "<img src=\"\(NetworkUtils.getAbsoluteURL(redirectUrl, src))\(param)\">"
+            out += "<img src=\"\(NetworkUtils.getAbsoluteURL(redirectUrl, raw))\(param)\">"
             pos = m.range.location + m.range.length
         }
         out += ns.substring(from: pos)
