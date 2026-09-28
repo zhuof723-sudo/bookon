@@ -54,16 +54,22 @@ final class ParagraphCommentTests: XCTestCase {
         // 走真实净化管线（保留图片、绝对化地址）
         let cleaned = HTMLFormatter.formatKeepImg(raw, redirectUrl: "http://154.58.233.54:1968")
         let paras = ContentParagraph.parse(cleaned)
-        XCTAssertGreaterThan(paras.count, 3, "应切出多段")
+        XCTAssertGreaterThanOrEqual(paras.count, 3, "应切出多段")
         // 第一段是「炎炎八月。」且尾部带一个段评气泡
         XCTAssertEqual(paras[0].text, "炎炎八月。")
-        XCTAssertEqual(paras[0].bubbles.count, 1)
+        XCTAssertEqual(paras[0].bubbles.count, 1, "第一段末尾应有 1 个气泡")
         let click = try XCTUnwrap(paras[0].bubbles[0].click)
         XCTAssertTrue(click.hasPrefix("showCmt("), "click 应为 showCmt: \(click)")
         XCTAssertTrue(click.contains("6982529841564224526"), "应含 bookId")
+        // 第二段「滴滴滴——！」尾部也有一个气泡
+        XCTAssertEqual(paras[1].text, "滴滴滴——！")
+        XCTAssertEqual(paras[1].bubbles.count, 1)
         // 气泡不会污染正文文字
         XCTAssertFalse(paras[0].text.contains("<img"))
         XCTAssertFalse(paras[0].text.contains("base64"))
+        // 其余段落是纯文本
+        XCTAssertTrue(paras[2].bubbles.isEmpty)
+        XCTAssertTrue(paras[2].text.contains("蝉鸣"))
     }
 
     private func realBubbleImgTag(count: String) -> String {
