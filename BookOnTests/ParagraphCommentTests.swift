@@ -32,6 +32,44 @@ final class ParagraphCommentTests: XCTestCase {
         XCTAssertTrue(t2.contains("第二段文字"))
     }
 
+    /// 位置：气泡必须归到**它所属段落的末尾**，而不是自己单独成段。
+    func testBubbleAttachedToItsParagraphTail() {
+        let content = "第一段。" + realBubbleImgTag(count: "56190")
+            + "\n第二段没有气泡。\n第三段。" + realBubbleImgTag(count: "12")
+        let paras = ContentParagraph.parse(content)
+        XCTAssertEqual(paras.count, 3, "应为 3 段")
+        XCTAssertEqual(paras[0].text, "第一段。")
+        XCTAssertEqual(paras[0].bubbles.count, 1, "第一段末尾应有 1 个气泡")
+        XCTAssertEqual(paras[1].text, "第二段没有气泡。")
+        XCTAssertTrue(paras[1].bubbles.isEmpty, "第二段不应有气泡")
+        XCTAssertEqual(paras[2].text, "第三段。")
+        XCTAssertEqual(paras[2].bubbles.count, 1)
+        XCTAssertEqual(paras[0].bubbles[0].click, "showCmt('1','2','0','56190')")
+    }
+
+    /// 真实整章数据：净化 → 分段，气泡不丢、归属正确、click 完整。
+    func testRealChapterParagraphsFromFixture() throws {
+        let url = Bundle(for: Self.self).url(forResource: "fanqie_chapter_with_reviews", withExtension: "txt")!
+        let raw = try String(contentsOf: url, encoding: .utf8)
+        // 走真实净化管线（保留图片、绝对化地址）
+        let cleaned = HTMLFormatter.formatKeepImg(raw, redirectUrl: "http://154.58.233.54:1968")
+        let paras = ContentParagraph.parse(cleaned)
+        XCTAssertGreaterThan(paras.count, 3, "应切出多段")
+        // 第一段是「炎炎八月。」且尾部带一个段评气泡
+        XCTAssertEqual(paras[0].text, "炎炎八月。")
+        XCTAssertEqual(paras[0].bubbles.count, 1)
+        let click = try XCTUnwrap(paras[0].bubbles[0].click)
+        XCTAssertTrue(click.hasPrefix("showCmt("), "click 应为 showCmt: \(click)")
+        XCTAssertTrue(click.contains("6982529841564224526"), "应含 bookId")
+        // 气泡不会污染正文文字
+        XCTAssertFalse(paras[0].text.contains("<img"))
+        XCTAssertFalse(paras[0].text.contains("base64"))
+    }
+
+    private func realBubbleImgTag(count: String) -> String {
+        "<img src=\"data:image/svg+xml;base64,ABC==,{\"style\":\"text\",\"type\":\"qd\",\"click\":\"showCmt('1','2','0','\(count)')\"}\">"
+    }
+
     func testBadgeCountParsedFromClick() {
         let click = "showCmt('6982529841564224526','6982735801973113351','0','56190')"
         let re = try! NSRegularExpression(pattern: "showCmt\\([^)]*'\\s*,\\s*'(\\d+)'\\s*\\)")

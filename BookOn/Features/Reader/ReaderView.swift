@@ -119,6 +119,8 @@ struct ReaderView: View {
         _vm = StateObject(wrappedValue: ReaderViewModel(book: book, chapters: chapters, startIndex: startIndex, source: source))
     }
 
+    @ObservedObject private var browser = BrowserPresenter.shared
+
     var body: some View {
         ZStack {
             Color(.systemBackground).ignoresSafeArea()
@@ -128,6 +130,11 @@ struct ReaderView: View {
         .navigationBarHidden(true)
         .onAppear { if vm.content.isEmpty { vm.loadCurrent() } }
         .onTapGesture { withAnimation { showBars.toggle() } }
+        // 点段评气泡时 JS 会调用 java.showBrowser -> BrowserPresenter，在阅读器这一层直接弹出，
+        // 保证 push 在导航栈里时也能正常展示评论页。
+        .sheet(item: $browser.request) { req in
+            BottomWebView(title: req.title, html: req.html, url: req.url)
+        }
     }
 
     private var content: some View {
@@ -161,26 +168,40 @@ struct ReaderView: View {
         }
     }
 
-    /// 正文渲染：文本照常显示；`<img ...,{"click":"..."}>`（段评气泡等）渲染成可点的小徽标，
-    /// 点击后按 Legado `clickImg` 语义执行其 click JS。
+    /// 正文渲染：按段落逐段显示；段评气泡（`<img ...,{"click":"..."}>`）紧跟在**它所属段落的末尾**，
+    /// 与原版一致（getComments 是 `comcont[段号] += '<img...>'`，即拼在该段文字后面），
+    /// 而不是单独占一行。点击气泡按 Legado `clickImg` 语义执行 click JS。
     private var contentBody: some View {
-        let segments = ContentSegmenter.segments(vm.content)
-        return VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(segments.enumerated()), id: \.offset) { _, seg in
-                switch seg {
-                case .text(let t):
-                    if !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(t)
-                            .font(.system(size: fontSize))
-                            .lineSpacing(fontSize * 0.5)
+        let paragraphs = ContentParagraph.parse(vm.content)
+        return VStack(alignment: .leading, spacing: fontSize * 0.7) {
+            ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, para in
+                paragraphView(para)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func paragraphView(_ para: ContentParagraph) -> some View {
+        if para.bubbles.isEmpty {
+            // 纯文本段落
+            if !para.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text(para.text)
+                    .font(.system(size: fontSize))
+                    .lineSpacing(fontSize * 0.5)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } else {
+            // 文本 + 尾部气泡：用自动换行的流式排布，气泡跟在文字后
+            FlowLayout(spacing: 4, lineSpacing: fontSize * 0.5) {
+                Text(para.text)
+                    .font(.system(size: fontSize))
+                ForEach(Array(para.bubbles.enumerated()), id: \.offset) { _, b in
+                    CommentBubble(count: b.click.flatMap(parseBadgeCount)) {
+                        if let c = b.click { vm.clickImage(c, src: b.src) }
                     }
-                case .image(let src, let click):
-                    CommentBubble(count: click.flatMap(parseBadgeCount)) {
-                        if let click { vm.clickImage(click, src: src) }
-                    }
-                    .padding(.vertical, 2)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

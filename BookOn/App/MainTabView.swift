@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @StateObject private var browser = BrowserPresenter.shared
-
     var body: some View {
         TabView {
             BookshelfView()
@@ -12,10 +10,8 @@ struct MainTabView: View {
             MineView()
                 .tabItem { Label("我的", systemImage: "person.circle") }
         }
-        // 书源 JS 调用 java.showBrowser / startBrowser（段评/章评/书评等）时，从这里弹出
-        .sheet(item: $browser.request) { req in
-            BottomWebView(title: req.title, html: req.html, url: req.url)
-        }
+        // 评论页（java.showBrowser / startBrowser）由发起点所在的视图监听 BrowserPresenter 弹出，
+        // 目前段评在 ReaderView 里触发，故 sheet 挂在 ReaderView 上（见 ReaderView.body）。
     }
 }
 
