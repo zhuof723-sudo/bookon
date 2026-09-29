@@ -340,8 +340,14 @@ import SwiftSoup
     func showBrowser(_ url: JSValue, _ html: JSValue, _ a: JSValue, _ b: JSValue) {
         let u = str(url) ?? ""
         let h = str(html)
-        AppLog.put("java.showBrowser 触发: url=\(u.prefix(80)) htmlLen=\(h?.count ?? 0)")
-        DispatchQueue.main.async { BrowserPresenter.shared.show(title: "评论", html: h, url: u) }
+        // 第 4 个参数是 commentViewerConfig() 的 JSON，取其中的 heightPercentage 作为半屏高度
+        var frac = 0.62
+        if let cfg = str(b), let obj = JSONLoose.parseObject(cfg),
+           let hp = (obj["heightPercentage"] as? NSNumber)?.doubleValue, hp > 0, hp <= 1 {
+            frac = hp
+        }
+        AppLog.put("java.showBrowser 触发: url=\(u.prefix(80)) htmlLen=\(h?.count ?? 0) h=\(frac)")
+        DispatchQueue.main.async { BrowserPresenter.shared.show(title: "评论", html: h, url: u, heightFraction: frac) }
     }
     func importScript(_ path: String) -> String {
         if NetworkUtils.isAbsUrl(path) { return cacheFile(path, JSValue(undefinedIn: JSContext.current())) }

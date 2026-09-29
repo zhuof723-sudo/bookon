@@ -25,9 +25,10 @@ final class ParagraphCommentTests: XCTestCase {
         XCTAssertEqual(segs.count, 3)
         guard case .text(let t1) = segs[0] else { return XCTFail("首段应为文本") }
         XCTAssertTrue(t1.contains("第一段文字"))
-        guard case .image(let src, let click) = segs[1] else { return XCTFail("中段应为气泡图片") }
+        guard case .image(let src, let click, let style) = segs[1] else { return XCTFail("中段应为气泡图片") }
         XCTAssertEqual(src, "data:image/svg+xml;base64,ABC==")
         XCTAssertEqual(click, "showCmt('1','2','0','56190')")
+        XCTAssertEqual(style, .text, "段评气泡应识别为 text 样式")
         guard case .text(let t2) = segs[2] else { return XCTFail("末段应为文本") }
         XCTAssertTrue(t2.contains("第二段文字"))
     }
@@ -84,6 +85,22 @@ final class ParagraphCommentTests: XCTestCase {
         p.request = nil
     }
 
+    /// java.showBrowser 的第 4 参 config 里的 heightPercentage 应变成半屏高度占比。
+    @MainActor
+    func testShowBrowserCarriesHeightFraction() throws {
+        let url = Bundle(for: Self.self).url(forResource: "fanqie_go", withExtension: "json")!
+        let source = try LegadoJSON.decoder().decode([BookSource].self, from: Data(contentsOf: url))[0]
+        BrowserPresenter.shared.request = nil
+        let js = "java.showBrowser('https://x.test/p','<p>c</p>','', '{\"heightPercentage\":0.5}')"
+        _ = try JSCoreEvaluator.shared.eval(js, bindings: ["source": source])
+        let exp = expectation(description: "shown")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { exp.fulfill() }
+        wait(for: [exp], timeout: 2)
+        XCTAssertEqual(BrowserPresenter.shared.request?.heightFraction ?? 0, 0.5, accuracy: 0.001,
+                       "半屏高度应来自 config.heightPercentage")
+        BrowserPresenter.shared.request = nil
+    }
+
     /// java.showBrowser 桥接：真实 4 参调用应把 url/html 交给 BrowserPresenter。
     @MainActor
     func testJavaShowBrowserBridgePublishes() throws {
@@ -98,6 +115,35 @@ final class ParagraphCommentTests: XCTestCase {
         wait(for: [exp], timeout: 2)
         XCTAssertEqual(BrowserPresenter.shared.request?.url, "https://x.test/p")
         BrowserPresenter.shared.request = nil
+    }
+
+    /// 段评（style=text）行内；神评/章评/作者说（style=full 或无选项、前置换行）块级独占一行。
+    func testTextBubbleInlineVsFullBlock() {
+        // 第一段文字 + 行内段评气泡；随后是一条 full 样式的章评横幅（独占一行）
+        let content =
+            "第一段。" + tag(style: "text", click: "showCmt('1','2','0','56190')")
+            + "\n" + tag(style: "full", click: "getChapComments('1','2')")
+            + "\n第二段。"
+        let paras = ContentParagraph.parse(content)
+        XCTAssertEqual(paras.count, 3, "应为：文字段 / 块级横幅 / 文字段")
+
+        // 段1：文字 + 行内气泡
+        if case .text = paras[0].kind {} else { return XCTFail("第0段应为文字") }
+        XCTAssertEqual(paras[0].text, "第一段。")
+        XCTAssertEqual(paras[0].bubbles.count, 1, "段评应行内挂在段末")
+
+        // 段2：块级横幅（章评）
+        guard case .blockImage(_, let click) = paras[1].kind else { return XCTFail("第1段应为块级横幅") }
+        XCTAssertEqual(click, "getChapComments('1','2')")
+
+        // 段3：纯文字
+        if case .text = paras[2].kind {} else { return XCTFail("第2段应为文字") }
+        XCTAssertEqual(paras[2].text, "第二段。")
+        XCTAssertTrue(paras[2].bubbles.isEmpty)
+    }
+
+    private func tag(style: String, click: String) -> String {
+        "<img src=\"data:image/svg+xml;base64,ABC==,{\"style\":\"\(style)\",\"click\":\"\(click)\"}\">"
     }
 
     private func realBubbleImgTag(count: String) -> String {

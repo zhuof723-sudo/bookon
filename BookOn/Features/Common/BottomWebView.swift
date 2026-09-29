@@ -7,7 +7,15 @@ struct BottomWebView: View {
     let title: String
     let html: String?
     let url: String
+    /// 书源在 commentViewerConfig() 里给的高度占比（0~1），段评默认约 0.62（半屏）
+    var heightFraction: Double = 0.62
     @Environment(\.dismiss) private var dismiss
+
+    private var detents: Set<PresentationDetent> {
+        let f = min(max(heightFraction, 0.3), 0.98)
+        // 半屏为主，可上拉到接近全屏
+        return [.fraction(f), .large]
+    }
 
     var body: some View {
         NavigationStack {
@@ -28,6 +36,9 @@ struct BottomWebView: View {
                 }
             }
         }
+        // 半屏弹窗（对应原版评论页的 BottomSheet），可上拉放大
+        .presentationDetents(detents)
+        .presentationDragIndicator(.visible)
     }
 }
 
@@ -62,11 +73,12 @@ final class BrowserPresenter: ObservableObject {
         let title: String
         let html: String?
         let url: String
+        var heightFraction: Double = 0.62
     }
 
     @Published var request: Request?
 
-    func show(title: String, html: String?, url: String) {
-        request = Request(title: title, html: html, url: url)
+    func show(title: String, html: String?, url: String, heightFraction: Double = 0.62) {
+        request = Request(title: title, html: html, url: url, heightFraction: heightFraction)
     }
 }

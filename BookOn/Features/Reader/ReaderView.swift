@@ -144,7 +144,7 @@ struct ReaderView: View {
         // 点段评气泡时 JS 会调用 java.showBrowser -> BrowserPresenter，在阅读器这一层直接弹出，
         // 保证 push 在导航栈里时也能正常展示评论页。
         .sheet(item: $browser.request) { req in
-            BottomWebView(title: req.title, html: req.html, url: req.url)
+            BottomWebView(title: req.title, html: req.html, url: req.url, heightFraction: req.heightFraction)
         }
     }
 
@@ -193,31 +193,40 @@ struct ReaderView: View {
 
     @ViewBuilder
     private func paragraphView(_ para: ContentParagraph) -> some View {
-        if para.bubbles.isEmpty {
-            // 纯文本段落（点击切换工具栏，与背景一致）
-            if !para.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text(para.text)
-                    .font(.system(size: fontSize))
-                    .lineSpacing(fontSize * 0.5)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .onTapGesture { withAnimation { showBars.toggle() } }
+        switch para.kind {
+        case .blockImage(let src, let click):
+            // 神评 / 章评 / 作者说 / 相关推荐：独占一行的整幅横幅（对应原版 style:full）。
+            ReviewBanner(src: src) {
+                if let c = click { vm.clickImage(c, src: src) }
             }
-        } else {
-            // 文本 + 尾部气泡：用自动换行的流式排布，气泡跟在文字后。
-            // 文字部分点击切换工具栏，气泡按钮点击打开评论（Button 自身接管点击，不会被文字手势抢）。
-            FlowLayout(spacing: 4, lineSpacing: fontSize * 0.5) {
-                Text(para.text)
-                    .font(.system(size: fontSize))
-                    .contentShape(Rectangle())
-                    .onTapGesture { withAnimation { showBars.toggle() } }
-                ForEach(Array(para.bubbles.enumerated()), id: \.offset) { _, b in
-                    CommentBubble(count: b.click.flatMap(parseBadgeCount)) {
-                        if let c = b.click { vm.clickImage(c, src: b.src) }
+            .frame(maxWidth: .infinity)
+
+        case .text:
+            if para.bubbles.isEmpty {
+                // 纯文本段落（点击切换工具栏）
+                if !para.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(para.text)
+                        .font(.system(size: fontSize))
+                        .lineSpacing(fontSize * 0.5)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture { withAnimation { showBars.toggle() } }
+                }
+            } else {
+                // 文字 + 尾部行内段评气泡：流式排布，气泡跟在文字末尾，放不下自动换到下一行。
+                FlowLayout(spacing: 4, lineSpacing: fontSize * 0.5) {
+                    Text(para.text)
+                        .font(.system(size: fontSize))
+                        .contentShape(Rectangle())
+                        .onTapGesture { withAnimation { showBars.toggle() } }
+                    ForEach(Array(para.bubbles.enumerated()), id: \.offset) { _, b in
+                        CommentBubble(count: b.click.flatMap(parseBadgeCount)) {
+                            if let c = b.click { vm.clickImage(c, src: b.src) }
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
